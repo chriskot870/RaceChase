@@ -71,7 +71,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:lines="2"
-                    android:text="Lap Report 1"
+                    android:text="Report 1"
                     android:textAlignment="center">
 
                 </TextView>
@@ -103,6 +103,7 @@
                 </TextView>
 
                 <TextView
+                    android:id="@+id/lap_gain"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:lines="2"
@@ -118,7 +119,8 @@
                     android:layout_height="wrap_content"
                     android:layout_gravity="center"
                     android:text="Start\nBoth"
-                    android:textAlignment="center">
+                    android:textAlignment="center"
+                    android:onClick="startSimultaneous">
 
                 </Button>
             </LinearLayout>
@@ -144,7 +146,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:lines="2"
-                    android:text="Lap Report 2"
+                    android:text="Report 2"
                     android:textAlignment="center">
 
                 </TextView>
@@ -154,7 +156,8 @@
                     android:layout_width="wrap_content"
                     android:layout_height="match_parent"
                     android:layout_gravity="center"
-                    android:text="Start\n2">
+                    android:text="Start\n2"
+                    android:onClick="startClock2">
 
                 </Button>
             </LinearLayout>
