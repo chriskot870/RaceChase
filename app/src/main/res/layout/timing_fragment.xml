@@ -62,7 +62,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:textAlignment="center"
-                    android:textSize="20sp">
+                    android:textSize="30sp">
 
                 </Chronometer>
 
@@ -72,6 +72,7 @@
                     android:layout_height="wrap_content"
                     android:lines="2"
                     android:text="Report 1"
+                    android:textSize="30sp"
                     android:textAlignment="center">
 
                 </TextView>
@@ -81,6 +82,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="match_parent"
                     android:layout_gravity="center"
+                    android:textSize="30sp"
                     android:text="Start\n1">
 
                 </Button>
@@ -98,7 +100,7 @@
                     android:layout_height="wrap_content"
                     android:text="Lap Diff"
                     android:textAlignment="center"
-                    android:textSize="20sp">
+                    android:textSize="30sp">
 
                 </TextView>
 
@@ -109,6 +111,7 @@
                     android:lines="2"
                     android:orientation="vertical"
                     android:text="Lap Gain"
+                    android:textSize="30sp"
                     android:textAlignment="center">
 
                 </TextView>
@@ -119,6 +122,7 @@
                     android:layout_height="wrap_content"
                     android:layout_gravity="center"
                     android:text="Start\nBoth"
+                    android:textSize="30sp"
                     android:textAlignment="center"
                     android:onClick="startSimultaneous">
 
@@ -137,7 +141,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:textAlignment="center"
-                    android:textSize="20sp">
+                    android:textSize="30sp">
 
                 </Chronometer>
 
@@ -147,6 +151,7 @@
                     android:layout_height="wrap_content"
                     android:lines="2"
                     android:text="Report 2"
+                    android:textSize="30sp"
                     android:textAlignment="center">
 
                 </TextView>
@@ -157,6 +162,7 @@
                     android:layout_height="match_parent"
                     android:layout_gravity="center"
                     android:text="Start\n2"
+                    android:textSize="30sp"
                     android:onClick="startClock2">
 
                 </Button>

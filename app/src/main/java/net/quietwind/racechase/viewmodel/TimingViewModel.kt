@@ -4,6 +4,9 @@ import android.graphics.Color
 import android.os.SystemClock
 import android.util.Log
 import android.view.View
+import android.widget.Button
+import android.widget.Chronometer
+import androidx.annotation.ColorInt
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -14,8 +17,12 @@ import net.quietwind.racechase.databinding.TimingFragmentBinding
 import net.quietwind.racechase.repository.RaceChaseRepository
 import net.quietwind.racechase.ui.CLOCK1_BUTTON
 import net.quietwind.racechase.ui.CLOCK2_BUTTON
-import net.quietwind.racechase.ui.EntrantAdapter
-import net.quietwind.racechase.ui.SIMULTANEOUS_BUTTON
+import net.quietwind.racechase.ui.CONTROL_BUTTON
+import net.quietwind.racechase.ui.*
+
+const val STATUS_CLOCK_START = 0
+const val STATUS_CLOCK_RUNNING = 1
+const val STATUS_CLOCK_STOPPED = 2
 
 class TimingViewModel(private val repository: RaceChaseRepository) : ViewModel() {
 
@@ -27,6 +34,37 @@ class TimingViewModel(private val repository: RaceChaseRepository) : ViewModel()
         val units: String = "miles"
         val type: String = "Oval"
     }
+
+    data class ButtonProperties (val text: String, val color: Int)
+
+    data class ButtonState(var state:Int , var base: Long, var propertiesByState: Array<ButtonProperties>)
+
+    private var status = arrayOf(
+        ButtonState(STATUS_CLOCK_START,
+            0L,
+            arrayOf(
+                ButtonProperties("START\n%s", Color.BLUE),
+                ButtonProperties("LAP\n%s", Color.BLUE),
+                ButtonProperties("HALTED\n%s", Color.GRAY)
+            )
+        ),
+        ButtonState(STATUS_CLOCK_START,
+            0L,
+            arrayOf(
+                ButtonProperties("START\n%s", Color.BLUE),
+                ButtonProperties("LAP\n%s", Color.BLUE),
+                ButtonProperties("HALTED\n%s", Color.GRAY)
+            )
+        ),
+        ButtonState(STATUS_CLOCK_START,
+            0L,
+            arrayOf(
+                ButtonProperties("START\nBOTH", Color.BLUE),
+                ButtonProperties("STOP\nBOTH", Color.RED),
+                ButtonProperties("RESET\nALL", Color.BLUE)
+            )
+        )
+    )
 
     val speedUnits: String = "mph"
 
@@ -52,106 +90,135 @@ class TimingViewModel(private val repository: RaceChaseRepository) : ViewModel()
             }
         }
     }
-    fun clockAction(binding: TimingFragmentBinding, button: Int) {
+
+    fun clockInit(timingBindings: UiTimingBindings) {
+
+        val clocks = timingBindings.chronometers
+        val buttons = timingBindings.timingButtons
+        val reports = timingBindings.lapReports
+        val lapDifference = timingBindings.lapDifference
+        val lapGain = timingBindings.lapGain
+
+        /*
+         * We want to look at the status and set the clocks and buttons and Reports from them
+         */
+
+    }
+    fun clockAction(timingBindings: UiTimingBindings, buttonId: Int) {
         val now: Long = SystemClock.elapsedRealtime()
 
-        if ( button != SIMULTANEOUS_BUTTON ) {
+        val clocks = timingBindings.chronometers
+        val buttons = timingBindings.timingButtons
+        val reports = timingBindings.lapReports
+        val lapDifference = timingBindings.lapDifference
+        val lapGain = timingBindings.lapGain
+
+        if ( buttonId != CONTROL_BUTTON ) {
             /*
-             * Don't start any clocks or count any laps if simultaneous button is in RESET\nBOTH state
+             * Don't start any clocks or count any laps if control button is STOPPED
              */
-            if ( binding.simultaneousStartStopButton.text != "RESET\nBOTH" ) {
-                if (!running[button]) {
+            if ( status[CONTROL_BUTTON].state != STATUS_CLOCK_STOPPED ) {
+                /*
+                 * If the clock is in START state then go ahead and START it
+                 */
+                if (status[buttonId].state == STATUS_CLOCK_START) {
                     /*
-                     * If it's one of the clock buttons
-                     * Start it
-                     * Change the button's text
-                     * Change the simultaneous button's text
-                     * (We go ahead and just reset the simultaneous test whether it's already set or not)
+                     * We only START clock2 is clock1 is already running.
+                     * If we are here we know it is either clock1 or clock2
+                     * So, we test clock1 first and go on through. We will
+                     * only do the second part of the || if it's clock2.
+                     * But we only want to START clock2 if clock1 is running
                      */
-                    when (button) {
-                        CLOCK1_BUTTON -> {
-                            /*
-                         * Set the clocks base to now so it starts counting from now
+                    if ( buttonId == CLOCK1_BUTTON ||
+                        status[CLOCK1_BUTTON].state == STATUS_CLOCK_RUNNING ) {
+                        /*
+                         * We ant to set local values and also update the buttons.
+                         * The local values keep the clock and control states so if the
+                         * UI has to restart, like when the device is rotated,  we can get
+                         * things back to the state it was in.
                          */
-                            binding.lapClock1.base = now
-                            binding.lapClock1.start()
-                            lastBase[button] = now
-                            binding.lapButton1.text = "LAP\n1"
-                            binding.simultaneousStartStopButton.text = "STOP\nBOTH"
-                            running[button] = true
+                        status[buttonId].state = STATUS_CLOCK_RUNNING
+                        status[buttonId].base = now
+                        /*
+                         * Set the chronometer to the proper runnign state
+                         */
+                        clocks[buttonId].base = status[buttonId].base
+                        clocks[buttonId].start()
+                        /*
+                         * Now set the button properties to reflect the new state
+                         */
+                        buttons[buttonId].text =
+                            status[buttonId].propertiesByState[status[buttonId].state].text.format(buttonId+1)
+                        buttons[buttonId].setBackgroundColor(
+                            status[buttonId].propertiesByState[status[buttonId].state].color)
+                        /*
+                         * If it is clock1 changing to running, then control moves to running also
+                         */
+                        if ( buttonId == CLOCK1_BUTTON ) {
+                            status[CONTROL_BUTTON].state = STATUS_CLOCK_RUNNING
+                            /*
+                             * Now update the control button itself
+                             */
+                            buttons[CONTROL_BUTTON].text =
+                                status[CONTROL_BUTTON].propertiesByState[status[CONTROL_BUTTON].state].text
+                            buttons[CONTROL_BUTTON].setBackgroundColor(
+                                status[CONTROL_BUTTON].propertiesByState[status[CONTROL_BUTTON].state].color)
                         }
-                        CLOCK2_BUTTON -> {
-                            /*
-                         * Only start clock2 if clock1 is running
+                        /*
+                         * If it's clock 2 we know clock 1 is already running so we need to set the difference field
                          */
-                            if (running[CLOCK1_BUTTON]) {
-                                binding.lapClock2.base = now
-                                binding.lapClock2.start()
-                                lastBase[button] = now
-                                binding.lapButton2.text = "LAP\n2"
-                                binding.simultaneousStartStopButton.text = "STOP\nBOTH"
-                                running[button] = true
-                                lastDiff = null
-                            }
+                        if ( buttonId == CLOCK2_BUTTON ) {
+                            /*
+                             * Record this difference
+                             */
+                            lastDiff = status[CLOCK2_BUTTON].base - status[CLOCK1_BUTTON].base
+                            /*
+                             * Update the lap difference text view
+                             */
+                            lapDifference.text = "%3.2f".format(
+                                (lastDiff!!.toFloat()) / 1000.0F)
                         }
                     }
                 } else {
                     /*
-                 * This clock is running, so we are tracking laps
-                 * This means we want to show lap times and
-                 * start another lap time. We start a new
-                 * lap time by resetting the base to now
-                 */
-                    when (button) {
-                        CLOCK1_BUTTON -> {
-                            /*
-                         * Find out how long the clock has been running since last changing the base
-                         */
-                            val interval: Long = now - binding.lapClock1.base
-                            /*
-                         * Now reset the Base time to get the next lap split
-                         */
-                            binding.lapClock1.base = now
-                            lastBase[button] = now
-                            /*
-                         * Now Display the speed
-                         */
-                            binding.lapReport1.text =
-                                "%3.2f\n%s".format(getSpeed(interval), speedUnits)
-                        }
-                        CLOCK2_BUTTON -> {
-                            /*
-                         * Find out how long the clock has been running since last changing the base
-                         */
-                            val interval: Long = now - binding.lapClock2.base
-                            /*
-                         * Now reset the Base time to get the next lap split
-                         */
-                            binding.lapClock2.base = now
-                            lastBase[button] = now
-                            /*
-                         * Now Display the speed
-                         */
-                            binding.lapReport2.text =
-                                "%3.2f\n%s".format(getSpeed(interval), speedUnits)
-                            val currentDiff: Long = now - binding.lapClock1.base
-                            if (lastDiff != null) {
-                                val gain: Long = currentDiff - lastDiff!!
-                                if (gain < 0) {
-                                    binding.lapGain.text =
-                                        "%3.2f".format((gain.toFloat()) / 1000.0F)
-                                    binding.lapGain.setTextColor(Color.RED)
-                                } else {
-                                    binding.lapGain.text =
-                                        "+%3.2f".format((gain.toFloat()) / 1000.0F)
-                                    binding.lapGain.setTextColor(Color.BLUE)
-                                }
+                     * This clock is running, so we are tracking laps
+                     * This means we want to show lap times and
+                     * start another lap time. We start a new
+                     * lap time by resetting the base to now
+                     */
+                    val interval: Long = now - status[buttonId].base
+                    /*
+                     * Now reset the Base time in the local status for the clock
+                     * Then reset the base time in the chronometer
+                     */
+                    status[buttonId].base = now
+                    clocks[buttonId].base = status[buttonId].base
+                    /*
+                     * Update the clock's report,but don't chnage anything in the button
+                     */
+                    reports[buttonId].text =
+                        "%3.2f\n%s".format(getSpeed(interval), speedUnits)
+                    /*
+                     * If it is the second clock then update the Difference and Gain
+                     */
+                    if ( buttonId == CLOCK2_BUTTON ) {
+                        val currentDiff: Long =
+                            status[CLOCK2_BUTTON].base - status[CLOCK1_BUTTON].base
+                        if (lastDiff != null) {
+                            val gain: Long = currentDiff - lastDiff!!
+                            if (gain < 0) {
+                                lapGain.text =
+                                    "%3.2f".format((gain.toFloat()) / 1000.0F)
+                                lapGain.setTextColor(Color.RED)
+                            } else {
+                                lapGain.text =
+                                    "+%3.2f".format((gain.toFloat()) / 1000.0F)
+                                lapGain.setTextColor(Color.BLUE)
                             }
-                            lastDiff = currentDiff
-                            binding.lapDifference.text = "%3.2f".format(
-                                (lastDiff!!.toFloat()) / 1000.0F
-                            )
                         }
+                        lastDiff = currentDiff
+                        lapDifference.text = "%3.2f".format(
+                            (lastDiff!!.toFloat()) / 1000.0F )
                     }
                 }
             }
@@ -159,50 +226,136 @@ class TimingViewModel(private val repository: RaceChaseRepository) : ViewModel()
             /*
              * It was the simultaneous button
              */
-
-            when(binding.simultaneousStartStopButton.text) {
-                "START\nBOTH" -> {
-                    binding.lapClock1.base = now
-                    binding.lapClock1.start()
-                    binding.lapButton1.text = "LAP\n1"
-                    binding.lapClock2.base = now
-                    binding.lapClock2.start()
-                    binding.lapButton2.text = "LAP\n2"
-                    binding.simultaneousStartStopButton.text = "STOP\nBOTH"
-
-                }
-                "STOP\nBOTH" -> {
-                    if (running[CLOCK1_BUTTON]) {
-                        binding.lapClock1.stop()
-                        running[CLOCK1_BUTTON] = false
-                    }
-                    if (running[CLOCK2_BUTTON]) {
-                        binding.lapClock2.stop()
-                        running[CLOCK2_BUTTON] = false
-                    }
-                    binding.simultaneousStartStopButton.text = "RESET\nBOTH"
-                }
-                "RESET\nBOTH" -> {
-                    binding.lapClock1.base = now
-                    binding.lapClock1.stop()
-                    running[CLOCK1_BUTTON] = false
-                    binding.lapClock2.base = now
-                    binding.lapClock2.stop()
-                    running[CLOCK2_BUTTON] = false
-                    binding.lapButton1.text = "START\n1"
-                    binding.lapButton2.text = "START\n2"
-                    binding.lapReport1.text = "Report 1"
-                    binding.lapReport2.text = "Report 2"
-                    binding.simultaneousStartStopButton.text = "START\nBOTH"
-                    binding.lapDifference.text = "Lap Diff"
-                    binding.lapGain.text = "Lap Gain"
-                    binding.lapGain.setTextColor(Color.BLACK)
+            when (status[buttonId].state) {
+                STATUS_CLOCK_START -> {
+                    /*
+                     * Change the state and base of both clocks
+                     */
+                    status[CLOCK1_BUTTON].state = STATUS_CLOCK_RUNNING
+                    status[CLOCK1_BUTTON].base = now
+                    status[CLOCK2_BUTTON].state = STATUS_CLOCK_RUNNING
+                    status[CLOCK2_BUTTON].base = now
+                    status[CONTROL_BUTTON].state = STATUS_CLOCK_RUNNING
+                    /*
+                     * Use the status to start the chronometers
+                     */
+                    clocks[CLOCK1_BUTTON].base = status[CLOCK1_BUTTON].base
+                    clocks[CLOCK1_BUTTON].start()
+                    clocks[CLOCK2_BUTTON].base = status[CLOCK2_BUTTON].base
+                    clocks[CLOCK2_BUTTON].start()
+                    /*
+                     * Since they started at the same time set lastDiff to 0
+                     */
                     lastDiff = 0
-                }
+                    lapDifference.text = "%3.2f".format(
+                        (lastDiff!!.toFloat()) / 1000.0F )
+                    /*
+                     * Now update all the necessary buttons' text and color
+                     */
+                    buttons[CLOCK1_BUTTON].text =
+                        status[CLOCK1_BUTTON].propertiesByState[status[CLOCK1_BUTTON].state].text.format(CLOCK1_BUTTON+1)
+                    buttons[CLOCK1_BUTTON].setBackgroundColor(
+                        status[CLOCK1_BUTTON].propertiesByState[status[CLOCK1_BUTTON].state].color
+                    )
 
+                    buttons[CLOCK2_BUTTON].text =
+                        status[CLOCK2_BUTTON].propertiesByState[status[CLOCK2_BUTTON].state].text.format(CLOCK2_BUTTON+1)
+                    buttons[CLOCK2_BUTTON].setBackgroundColor(
+                        status[CLOCK2_BUTTON].propertiesByState[status[CLOCK2_BUTTON].state].color
+                    )
+
+                    buttons[CONTROL_BUTTON].text =
+                        status[CONTROL_BUTTON].propertiesByState[status[CONTROL_BUTTON].state].text
+                    buttons[CONTROL_BUTTON].setBackgroundColor(
+                        status[CONTROL_BUTTON].propertiesByState[status[CONTROL_BUTTON].state].color
+                    )
+                }
+                STATUS_CLOCK_RUNNING -> {
+                    /*
+                     * Set all the clocks to stopped even is they aren't running
+                     * WE don't reset the base so the data for the last leg still shows
+                     */
+                    status[CLOCK1_BUTTON].state = STATUS_CLOCK_STOPPED
+                    clocks[CLOCK1_BUTTON].stop()
+                    buttons[CLOCK1_BUTTON].text =
+                        status[CLOCK1_BUTTON].propertiesByState[status[CLOCK1_BUTTON].state].text.format(CLOCK1_BUTTON+1)
+                    buttons[CLOCK1_BUTTON].setBackgroundColor(
+                        status[CLOCK1_BUTTON].propertiesByState[status[CLOCK1_BUTTON].state].color
+                    )
+
+                    status[CLOCK2_BUTTON].state = STATUS_CLOCK_STOPPED
+                    clocks[CLOCK2_BUTTON].stop()
+                    buttons[CLOCK2_BUTTON].text =
+                        status[CLOCK2_BUTTON].propertiesByState[status[CLOCK2_BUTTON].state].text.format(CLOCK2_BUTTON+1)
+                    buttons[CLOCK2_BUTTON].setBackgroundColor(
+                        status[CLOCK2_BUTTON].propertiesByState[status[CLOCK2_BUTTON].state].color
+                    )
+                    /*
+                     * Change the state of the CONTROl button and update the text and color
+                     */
+                    status[CONTROL_BUTTON].state = STATUS_CLOCK_STOPPED
+                    buttons[CONTROL_BUTTON].text =
+                        status[CONTROL_BUTTON].propertiesByState[status[CONTROL_BUTTON].state].text
+                    buttons[CONTROL_BUTTON].setBackgroundColor(
+                        status[CONTROL_BUTTON].propertiesByState[status[CONTROL_BUTTON].state].color
+                    )
+                }
+                STATUS_CLOCK_STOPPED -> {
+                    /*
+                     * Change the state and base of both clocks
+                     * and the control button
+                     */
+                    status[CLOCK1_BUTTON].state = STATUS_CLOCK_START
+                    status[CLOCK1_BUTTON].base = now
+                    status[CLOCK2_BUTTON].state = STATUS_CLOCK_START
+                    status[CLOCK2_BUTTON].base = now
+                    status[CONTROL_BUTTON].state = STATUS_CLOCK_START
+                    /*
+                     * Use the status to stop the chronometers
+                     * We need to set the base to now to make chronometer show
+                     * 00:00.
+                     * The clocks are probably already stopped but there is no harm
+                     * in stopping them again to be sure.
+                     */
+                    clocks[CLOCK1_BUTTON].stop()
+                    clocks[CLOCK1_BUTTON].base = status[CLOCK1_BUTTON].base
+                    clocks[CLOCK2_BUTTON].stop()
+                    clocks[CLOCK2_BUTTON].base = status[CLOCK2_BUTTON].base
+                    /*
+                     * Now update all the necessary buttons' text and color
+                     */
+                    buttons[CLOCK1_BUTTON].text =
+                        status[CLOCK1_BUTTON].propertiesByState[status[CLOCK1_BUTTON].state].text.format(CLOCK1_BUTTON+1)
+                    buttons[CLOCK1_BUTTON].setBackgroundColor(
+                        status[CLOCK1_BUTTON].propertiesByState[status[CLOCK1_BUTTON].state].color
+                    )
+
+                    buttons[CLOCK2_BUTTON].text =
+                        status[CLOCK2_BUTTON].propertiesByState[status[CLOCK2_BUTTON].state].text.format(CLOCK2_BUTTON+1)
+                    buttons[CLOCK2_BUTTON].setBackgroundColor(
+                        status[CLOCK2_BUTTON].propertiesByState[status[CLOCK2_BUTTON].state].color
+                    )
+
+                    buttons[CONTROL_BUTTON].text =
+                        status[CONTROL_BUTTON].propertiesByState[status[CONTROL_BUTTON].state].text
+                    buttons[CONTROL_BUTTON].setBackgroundColor(
+                        status[CONTROL_BUTTON].propertiesByState[status[CONTROL_BUTTON].state].color
+                    )
+                    /*
+                     * Now clear lastDiff
+                     * Then clear the reports and the difference and gain text fields
+                     */
+                    lastDiff = null
+                    reports[CLOCK1_BUTTON].text = "Report 1"
+                    reports[CLOCK2_BUTTON].text = "Report2"
+                    lapDifference.text = "Difference"
+                    lapGain.setTextColor(Color.BLACK)
+                    lapGain.text = "Gain"
+                }
             }
         }
     }
+
     private fun getSpeed(interval:Long): Float {
         /*
          * the interval is from SystemClock.elapsedRealTime() which is in milleseconds.

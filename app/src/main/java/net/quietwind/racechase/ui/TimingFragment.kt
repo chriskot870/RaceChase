@@ -7,7 +7,9 @@ import androidx.fragment.app.Fragment
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.Button
 import android.widget.Chronometer
+import android.widget.TextView
 import androidx.fragment.app.activityViewModels
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -17,11 +19,9 @@ import net.quietwind.racechase.databinding.TimingFragmentBinding
 import net.quietwind.racechase.viewmodel.TimingViewModel
 import net.quietwind.racechase.viewmodel.TimingViewModelFactory
 
-const val CLOCK1_OFFSET = 0
-const val CLOCK2_OFFSET = 1
 const val CLOCK1_BUTTON = 0
 const val CLOCK2_BUTTON = 1
-const val SIMULTANEOUS_BUTTON = 2
+const val CONTROL_BUTTON = 2
 
 class TimingFragment : Fragment() {
     private var _binding: TimingFragmentBinding? = null
@@ -32,6 +32,8 @@ class TimingFragment : Fragment() {
 
     private lateinit var clock1: Chronometer
     private lateinit var clock2: Chronometer
+
+    private lateinit var timingBindings: UiTimingBindings
 
     private var running: Array<Boolean> = arrayOf(false, false)
 
@@ -59,25 +61,45 @@ class TimingFragment : Fragment() {
         _binding = TimingFragmentBinding.inflate(inflater, container, false)
         val view = binding.root
 
+        /*
+         * Put the chronometers into an array
+         */
+        timingBindings = UiTimingBindings(
+            arrayOf(
+                binding.lapClock1,
+                binding.lapClock2),
+            arrayOf(
+                binding.lapButton1,
+                binding.lapButton2,
+                binding.simultaneousStartStopButton),
+            arrayOf(
+                binding.lapReport1,
+                binding.lapReport2),
+            binding.lapDifference,
+            binding.lapGain
+        )
+
+        /*
+         * set OnClickListener's for the timing buttons
+         * We do the work down in the ViewModel
+         */
+        binding.lapButton1.setOnClickListener {
+            viewModel.clockAction(timingBindings, CLOCK1_BUTTON)
+        }
+        binding.lapButton2.setOnClickListener {
+            viewModel.clockAction(timingBindings, CLOCK2_BUTTON)
+        }
+        binding.simultaneousStartStopButton.setOnClickListener {
+            viewModel.clockAction(timingBindings, CONTROL_BUTTON)
+        }
+
         return view
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         //val viewModel = ViewModelProvider(this).get(TimingViewModel::class.java)
-        /*
-         * set OnClickListener's for the timing buttons
-         * We do the work down in the ViewModel
-         */
-        binding.lapButton1.setOnClickListener {
-            viewModel.clockAction(binding, CLOCK1_BUTTON)
-        }
-        binding.lapButton2.setOnClickListener {
-            viewModel.clockAction(binding, CLOCK2_BUTTON)
-        }
-        binding.simultaneousStartStopButton.setOnClickListener {
-            viewModel.clockAction(binding, SIMULTANEOUS_BUTTON)
-        }
+
         /*
          * Get the Entrants recyclerView
          */
@@ -103,6 +125,11 @@ class TimingFragment : Fragment() {
         super.onDestroyView()
         _binding = null
     }
-
-
 }
+data class UiTimingBindings(
+    val chronometers: Array<Chronometer>,
+    val timingButtons: Array<Button>,
+    val lapReports: Array<TextView>,
+    val lapDifference: TextView,
+    val lapGain: TextView
+)

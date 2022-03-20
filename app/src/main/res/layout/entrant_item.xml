@@ -12,7 +12,7 @@
         android:id="@+id/entrant_text_view"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:textSize="20sp"
+        android:textSize="30sp"
         android:layout_gravity="center_horizontal"
         android:layout_weight="2" />
 
