@@ -26,9 +26,6 @@ const val STATUS_CLOCK_STOPPED = 2
 
 class TimingViewModel(private val repository: RaceChaseRepository) : ViewModel() {
 
-    val running: Array<Boolean> = arrayOf(false, false)
-    val lastBase: Array<Long> = arrayOf(0,0)
-    var lastDiff: Long? = null;
     object track {
         val length: Float = 1.5F
         val units: String = "miles"
@@ -39,32 +36,40 @@ class TimingViewModel(private val repository: RaceChaseRepository) : ViewModel()
 
     data class ButtonState(var state:Int , var base: Long, var propertiesByState: Array<ButtonProperties>)
 
-    private var status = arrayOf(
-        ButtonState(STATUS_CLOCK_START,
-            0L,
-            arrayOf(
-                ButtonProperties("START\n%s", Color.BLUE),
-                ButtonProperties("LAP\n%s", Color.BLUE),
-                ButtonProperties("HALTED\n%s", Color.GRAY)
-            )
-        ),
-        ButtonState(STATUS_CLOCK_START,
-            0L,
-            arrayOf(
-                ButtonProperties("START\n%s", Color.BLUE),
-                ButtonProperties("LAP\n%s", Color.BLUE),
-                ButtonProperties("HALTED\n%s", Color.GRAY)
-            )
-        ),
-        ButtonState(STATUS_CLOCK_START,
-            0L,
-            arrayOf(
-                ButtonProperties("START\nBOTH", Color.BLUE),
-                ButtonProperties("STOP\nBOTH", Color.RED),
-                ButtonProperties("RESET\nALL", Color.BLUE)
+    private object storage {
+        val status = arrayOf(
+            ButtonState(STATUS_CLOCK_START,
+                0L,
+                arrayOf(
+                    ButtonProperties("START\n%s", Color.BLUE),
+                    ButtonProperties("LAP\n%s", Color.BLUE),
+                    ButtonProperties("HALTED\n%s", Color.GRAY)
+                )
+            ),
+            ButtonState(STATUS_CLOCK_START,
+                0L,
+                arrayOf(
+                    ButtonProperties("START\n%s", Color.BLUE),
+                    ButtonProperties("LAP\n%s", Color.BLUE),
+                    ButtonProperties("HALTED\n%s", Color.GRAY)
+                )
+            ),
+            ButtonState(STATUS_CLOCK_START,
+                0L,
+                arrayOf(
+                    ButtonProperties("START\nBOTH", Color.BLUE),
+                    ButtonProperties("STOP\nBOTH", Color.RED),
+                    ButtonProperties("RESET\nALL", Color.BLUE)
+                )
             )
         )
-    )
+        val reports: Array<String> = arrayOf(
+            "Report 1",
+            "Report 2"
+        )
+        var lastDiff: Long? = null
+        var gain: Long? = null
+    }
 
     val speedUnits: String = "mph"
 
@@ -92,6 +97,7 @@ class TimingViewModel(private val repository: RaceChaseRepository) : ViewModel()
     }
 
     fun clockInit(timingBindings: UiTimingBindings) {
+        val now: Long = SystemClock.elapsedRealtime()
 
         val clocks = timingBindings.chronometers
         val buttons = timingBindings.timingButtons
@@ -99,9 +105,92 @@ class TimingViewModel(private val repository: RaceChaseRepository) : ViewModel()
         val lapDifference = timingBindings.lapDifference
         val lapGain = timingBindings.lapGain
 
+        val status = storage.status
         /*
-         * We want to look at the status and set the clocks and buttons and Reports from them
+         * Walk through the status buttons and set the values in the UI
          */
+       for(button in arrayOf(CLOCK1_BUTTON, CLOCK2_BUTTON, CONTROL_BUTTON)) {
+           if ( button != CONTROL_BUTTON ) {
+               /*
+                * Set the chronometers
+                */
+               when (status[button].state) {
+                   STATUS_CLOCK_START -> {
+                       /*
+                        * In the start state we want the clock to be stopped and show zero
+                        */
+                       clocks[button].stop()
+                       clocks[button].base = now
+                       buttons[button].text =
+                           status[button].propertiesByState[status[button].state].text.format(button+1)
+                       buttons[button].setBackgroundColor(
+                           status[button].propertiesByState[status[button].state].color)
+                   }
+                   STATUS_CLOCK_RUNNING -> {
+                       /*
+                        * In the running state we need to set the clock to running and set the base
+                        * so it picks up where it left off
+                        */
+                       clocks[button].base = status[button].base
+                       clocks[button].start()
+                       buttons[button].text =
+                           status[button].propertiesByState[status[button].state].text.format(button+1)
+                       buttons[button].setBackgroundColor(
+                           status[button].propertiesByState[status[button].state].color)
+                   }
+                   STATUS_CLOCK_STOPPED -> {
+                       /*
+                        * In the stopped state we want the clock to be stopped and the base set so we can
+                        * see the final settings
+                        */
+                       clocks[button].stop()
+                       clocks[button].base = status[button].base
+                       buttons[button].text =
+                           status[button].propertiesByState[status[button].state].text.format(button+1)
+                       buttons[button].setBackgroundColor(
+                           status[button].propertiesByState[status[button].state].color)
+                   }
+               }
+               /*
+                * Restore the reports
+                */
+               reports[button].text = storage.reports[button]
+
+           } else {
+               /*
+                * for the control button just change the button text and color
+                */
+               buttons[button].text =
+                   status[button].propertiesByState[status[button].state].text.format(button+1)
+               buttons[button].setBackgroundColor(
+                   status[button].propertiesByState[status[button].state].color)
+           }
+       }
+        /*
+         * Now set the lapdiff and lapGain
+         */
+        if ( storage.lastDiff == null ) {
+            lapDifference.text = "Difference"
+        } else {
+            lapDifference.text = "%3.2f".format(
+                (storage.lastDiff!!.toFloat()) / 1000.0F
+            )
+        }
+
+        if ( storage.gain == null ) {
+            lapGain.setTextColor(Color.BLACK)
+            lapGain.text = "Gain"
+        } else {
+            if (storage.gain!! < 0) {
+                lapGain.text =
+                    "%3.2f".format((storage.gain!!.toFloat()) / 1000.0F)
+                lapGain.setTextColor(Color.RED)
+            } else {
+                lapGain.text =
+                    "+%3.2f".format((storage.gain!!.toFloat()) / 1000.0F)
+                lapGain.setTextColor(Color.BLUE)
+            }
+        }
 
     }
     fun clockAction(timingBindings: UiTimingBindings, buttonId: Int) {
@@ -112,6 +201,8 @@ class TimingViewModel(private val repository: RaceChaseRepository) : ViewModel()
         val reports = timingBindings.lapReports
         val lapDifference = timingBindings.lapDifference
         val lapGain = timingBindings.lapGain
+
+        val status = storage.status
 
         if ( buttonId != CONTROL_BUTTON ) {
             /*
@@ -171,12 +262,12 @@ class TimingViewModel(private val repository: RaceChaseRepository) : ViewModel()
                             /*
                              * Record this difference
                              */
-                            lastDiff = status[CLOCK2_BUTTON].base - status[CLOCK1_BUTTON].base
+                            storage.lastDiff = status[CLOCK2_BUTTON].base - status[CLOCK1_BUTTON].base
                             /*
                              * Update the lap difference text view
                              */
                             lapDifference.text = "%3.2f".format(
-                                (lastDiff!!.toFloat()) / 1000.0F)
+                                (storage.lastDiff!!.toFloat()) / 1000.0F)
                         }
                     }
                 } else {
@@ -194,31 +285,32 @@ class TimingViewModel(private val repository: RaceChaseRepository) : ViewModel()
                     status[buttonId].base = now
                     clocks[buttonId].base = status[buttonId].base
                     /*
-                     * Update the clock's report,but don't chnage anything in the button
+                     * Update the clock's report,but don't change anything in the button
                      */
-                    reports[buttonId].text =
-                        "%3.2f\n%s".format(getSpeed(interval), speedUnits)
+                    storage.reports[buttonId] = "%3.2f\n%s".format(getSpeed(interval), speedUnits)
+                    reports[buttonId].text = storage.reports[buttonId]
+
                     /*
                      * If it is the second clock then update the Difference and Gain
                      */
                     if ( buttonId == CLOCK2_BUTTON ) {
                         val currentDiff: Long =
                             status[CLOCK2_BUTTON].base - status[CLOCK1_BUTTON].base
-                        if (lastDiff != null) {
-                            val gain: Long = currentDiff - lastDiff!!
-                            if (gain < 0) {
+                        if (storage.lastDiff != null) {
+                            storage.gain = currentDiff - storage.lastDiff!!
+                            if (storage.gain!! < 0) {
                                 lapGain.text =
-                                    "%3.2f".format((gain.toFloat()) / 1000.0F)
+                                    "%3.2f".format((storage.gain!!.toFloat()) / 1000.0F)
                                 lapGain.setTextColor(Color.RED)
                             } else {
                                 lapGain.text =
-                                    "+%3.2f".format((gain.toFloat()) / 1000.0F)
+                                    "+%3.2f".format((storage.gain!!.toFloat()) / 1000.0F)
                                 lapGain.setTextColor(Color.BLUE)
                             }
                         }
-                        lastDiff = currentDiff
+                        storage.lastDiff = currentDiff
                         lapDifference.text = "%3.2f".format(
-                            (lastDiff!!.toFloat()) / 1000.0F )
+                            (storage.lastDiff!!.toFloat()) / 1000.0F )
                     }
                 }
             }
@@ -246,9 +338,9 @@ class TimingViewModel(private val repository: RaceChaseRepository) : ViewModel()
                     /*
                      * Since they started at the same time set lastDiff to 0
                      */
-                    lastDiff = 0
+                    storage.lastDiff = 0
                     lapDifference.text = "%3.2f".format(
-                        (lastDiff!!.toFloat()) / 1000.0F )
+                        (storage.lastDiff!!.toFloat()) / 1000.0F )
                     /*
                      * Now update all the necessary buttons' text and color
                      */
@@ -345,12 +437,15 @@ class TimingViewModel(private val repository: RaceChaseRepository) : ViewModel()
                      * Now clear lastDiff
                      * Then clear the reports and the difference and gain text fields
                      */
-                    lastDiff = null
-                    reports[CLOCK1_BUTTON].text = "Report 1"
-                    reports[CLOCK2_BUTTON].text = "Report2"
+                    storage.lastDiff = null
                     lapDifference.text = "Difference"
+                    storage.gain = null
                     lapGain.setTextColor(Color.BLACK)
                     lapGain.text = "Gain"
+                    storage.reports[CLOCK1_BUTTON] = "Report 1"
+                    reports[CLOCK1_BUTTON].text = storage.reports[CLOCK1_BUTTON]
+                    storage.reports[CLOCK2_BUTTON] = "Report 2"
+                    reports[CLOCK2_BUTTON].text = storage.reports[CLOCK2_BUTTON]
                 }
             }
         }

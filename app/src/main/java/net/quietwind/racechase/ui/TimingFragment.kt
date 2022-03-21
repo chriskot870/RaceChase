@@ -119,6 +119,11 @@ class TimingFragment : Fragment() {
         Log.d("RaceChase", "Loading Entrant List")
         viewModel.loadEntrantList(entrantAdapter)
         Log.d("RaceChase", "Returned From Loading Entrant List")
+
+        /*
+         * Now initialize the Timing Info
+         */
+        viewModel.clockInit(timingBindings)
     }
 
     override fun onDestroyView() {
