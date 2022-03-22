@@ -2,18 +2,13 @@ package net.quietwind.racechase.viewmodel
 
 import android.graphics.Color
 import android.os.SystemClock
-import android.util.Log
-import android.view.View
-import android.widget.Button
-import android.widget.Chronometer
-import androidx.annotation.ColorInt
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import net.quietwind.racechase.databinding.TimingFragmentBinding
+import net.quietwind.racechase.R
 import net.quietwind.racechase.repository.RaceChaseRepository
 import net.quietwind.racechase.ui.CLOCK1_BUTTON
 import net.quietwind.racechase.ui.CLOCK2_BUTTON
@@ -26,17 +21,22 @@ const val STATUS_CLOCK_STOPPED = 2
 
 class TimingViewModel(private val repository: RaceChaseRepository) : ViewModel() {
 
-    object track {
-        val length: Float = 1.5F
-        val units: String = "miles"
-        val type: String = "Oval"
+    object Track {
+        const val length: Float = 1.5F
+        const val units: String = "miles"
+        const val type: String = "Oval"
     }
 
-    data class ButtonProperties (val text: String, val color: Int)
+    data class ButtonProperties(
+        val text: String,
+        val color: Int)
 
-    data class ButtonState(var state:Int , var base: Long, var propertiesByState: Array<ButtonProperties>)
+    data class ButtonState(
+        var state:Int ,
+        var base: Long,
+        var propertiesByState: Array<ButtonProperties>)
 
-    private object storage {
+    private object Storage {
         val status = arrayOf(
             ButtonState(STATUS_CLOCK_START,
                 0L,
@@ -71,26 +71,19 @@ class TimingViewModel(private val repository: RaceChaseRepository) : ViewModel()
         var gain: Long? = null
     }
 
-    val speedUnits: String = "mph"
+    private val speedUnits: String = "mph"
 
     fun loadEntrantList(entrantAdapter: EntrantAdapter) {
         /*
          * We are going to do some I/O so launch a coroutine to do the work
          */
-        Log.d("RaceChase", "In loadEntrantList launching coroutine to getAllEntrants")
         viewModelScope.launch(Dispatchers.IO) {
             repository.getAllEntrants().collect {
                 /*
                  * We need to go into the main thread in order to update the symbolAdapter List
                  */
                 withContext(Dispatchers.Main) {
-                    Log.d("RaceChase", "ViewModel got %d Entries Submitting to adapter now".format(it.size))
-                    it.forEach { entrant ->
-                        Log.d("RaceChase", "\t%s".format(entrant.toString()))
-                    }
-                    Log.d("RaceChase", "Adapter current list size before submitted %d".format(entrantAdapter.currentList.size))
                     entrantAdapter.submitList(it)
-                    Log.d("RaceChase", "Adapter current list size after submitted %d".format(entrantAdapter.currentList.size))
                 }
             }
         }
@@ -105,7 +98,7 @@ class TimingViewModel(private val repository: RaceChaseRepository) : ViewModel()
         val lapDifference = timingBindings.lapDifference
         val lapGain = timingBindings.lapGain
 
-        val status = storage.status
+        val status = Storage.status
         /*
          * Walk through the status buttons and set the values in the UI
          */
@@ -154,7 +147,7 @@ class TimingViewModel(private val repository: RaceChaseRepository) : ViewModel()
                /*
                 * Restore the reports
                 */
-               reports[button].text = storage.reports[button]
+               reports[button].text = Storage.reports[button]
 
            } else {
                /*
@@ -167,27 +160,27 @@ class TimingViewModel(private val repository: RaceChaseRepository) : ViewModel()
            }
        }
         /*
-         * Now set the lapdiff and lapGain
+         * Now set the lapDiff and lapGain
          */
-        if ( storage.lastDiff == null ) {
-            lapDifference.text = "Difference"
+        if ( Storage.lastDiff == null ) {
+            lapDifference.text = "Differences"
         } else {
             lapDifference.text = "%3.2f".format(
-                (storage.lastDiff!!.toFloat()) / 1000.0F
+                (Storage.lastDiff!!.toFloat()) / 1000.0F
             )
         }
 
-        if ( storage.gain == null ) {
+        if ( Storage.gain == null ) {
             lapGain.setTextColor(Color.BLACK)
             lapGain.text = "Gain"
         } else {
-            if (storage.gain!! < 0) {
+            if (Storage.gain!! < 0) {
                 lapGain.text =
-                    "%3.2f".format((storage.gain!!.toFloat()) / 1000.0F)
+                    "%3.2f".format((Storage.gain!!.toFloat()) / 1000.0F)
                 lapGain.setTextColor(Color.RED)
             } else {
                 lapGain.text =
-                    "+%3.2f".format((storage.gain!!.toFloat()) / 1000.0F)
+                    "+%3.2f".format((Storage.gain!!.toFloat()) / 1000.0F)
                 lapGain.setTextColor(Color.BLUE)
             }
         }
@@ -202,7 +195,7 @@ class TimingViewModel(private val repository: RaceChaseRepository) : ViewModel()
         val lapDifference = timingBindings.lapDifference
         val lapGain = timingBindings.lapGain
 
-        val status = storage.status
+        val status = Storage.status
 
         if ( buttonId != CONTROL_BUTTON ) {
             /*
@@ -231,7 +224,7 @@ class TimingViewModel(private val repository: RaceChaseRepository) : ViewModel()
                         status[buttonId].state = STATUS_CLOCK_RUNNING
                         status[buttonId].base = now
                         /*
-                         * Set the chronometer to the proper runnign state
+                         * Set the chronometer to the proper running state
                          */
                         clocks[buttonId].base = status[buttonId].base
                         clocks[buttonId].start()
@@ -262,12 +255,12 @@ class TimingViewModel(private val repository: RaceChaseRepository) : ViewModel()
                             /*
                              * Record this difference
                              */
-                            storage.lastDiff = status[CLOCK2_BUTTON].base - status[CLOCK1_BUTTON].base
+                            Storage.lastDiff = status[CLOCK2_BUTTON].base - status[CLOCK1_BUTTON].base
                             /*
                              * Update the lap difference text view
                              */
                             lapDifference.text = "%3.2f".format(
-                                (storage.lastDiff!!.toFloat()) / 1000.0F)
+                                (Storage.lastDiff!!.toFloat()) / 1000.0F)
                         }
                     }
                 } else {
@@ -287,8 +280,8 @@ class TimingViewModel(private val repository: RaceChaseRepository) : ViewModel()
                     /*
                      * Update the clock's report,but don't change anything in the button
                      */
-                    storage.reports[buttonId] = "%3.2f\n%s".format(getSpeed(interval), speedUnits)
-                    reports[buttonId].text = storage.reports[buttonId]
+                    Storage.reports[buttonId] = "%3.2f\n%s".format(getSpeed(interval), speedUnits)
+                    reports[buttonId].text = Storage.reports[buttonId]
 
                     /*
                      * If it is the second clock then update the Difference and Gain
@@ -296,21 +289,21 @@ class TimingViewModel(private val repository: RaceChaseRepository) : ViewModel()
                     if ( buttonId == CLOCK2_BUTTON ) {
                         val currentDiff: Long =
                             status[CLOCK2_BUTTON].base - status[CLOCK1_BUTTON].base
-                        if (storage.lastDiff != null) {
-                            storage.gain = currentDiff - storage.lastDiff!!
-                            if (storage.gain!! < 0) {
+                        if (Storage.lastDiff != null) {
+                            Storage.gain = currentDiff - Storage.lastDiff!!
+                            if (Storage.gain!! < 0) {
                                 lapGain.text =
-                                    "%3.2f".format((storage.gain!!.toFloat()) / 1000.0F)
+                                    "%3.2f".format((Storage.gain!!.toFloat()) / 1000.0F)
                                 lapGain.setTextColor(Color.RED)
                             } else {
                                 lapGain.text =
-                                    "+%3.2f".format((storage.gain!!.toFloat()) / 1000.0F)
+                                    "+%3.2f".format((Storage.gain!!.toFloat()) / 1000.0F)
                                 lapGain.setTextColor(Color.BLUE)
                             }
                         }
-                        storage.lastDiff = currentDiff
+                        Storage.lastDiff = currentDiff
                         lapDifference.text = "%3.2f".format(
-                            (storage.lastDiff!!.toFloat()) / 1000.0F )
+                            (Storage.lastDiff!!.toFloat()) / 1000.0F )
                     }
                 }
             }
@@ -338,9 +331,9 @@ class TimingViewModel(private val repository: RaceChaseRepository) : ViewModel()
                     /*
                      * Since they started at the same time set lastDiff to 0
                      */
-                    storage.lastDiff = 0
+                    Storage.lastDiff = 0
                     lapDifference.text = "%3.2f".format(
-                        (storage.lastDiff!!.toFloat()) / 1000.0F )
+                        (Storage.lastDiff!!.toFloat()) / 1000.0F )
                     /*
                      * Now update all the necessary buttons' text and color
                      */
@@ -383,7 +376,7 @@ class TimingViewModel(private val repository: RaceChaseRepository) : ViewModel()
                         status[CLOCK2_BUTTON].propertiesByState[status[CLOCK2_BUTTON].state].color
                     )
                     /*
-                     * Change the state of the CONTROl button and update the text and color
+                     * Change the state of the CONTROL button and update the text and color
                      */
                     status[CONTROL_BUTTON].state = STATUS_CLOCK_STOPPED
                     buttons[CONTROL_BUTTON].text =
@@ -437,15 +430,15 @@ class TimingViewModel(private val repository: RaceChaseRepository) : ViewModel()
                      * Now clear lastDiff
                      * Then clear the reports and the difference and gain text fields
                      */
-                    storage.lastDiff = null
+                    Storage.lastDiff = null
                     lapDifference.text = "Difference"
-                    storage.gain = null
+                    Storage.gain = null
                     lapGain.setTextColor(Color.BLACK)
                     lapGain.text = "Gain"
-                    storage.reports[CLOCK1_BUTTON] = "Report 1"
-                    reports[CLOCK1_BUTTON].text = storage.reports[CLOCK1_BUTTON]
-                    storage.reports[CLOCK2_BUTTON] = "Report 2"
-                    reports[CLOCK2_BUTTON].text = storage.reports[CLOCK2_BUTTON]
+                    Storage.reports[CLOCK1_BUTTON] = "Report 1"
+                    reports[CLOCK1_BUTTON].text = Storage.reports[CLOCK1_BUTTON]
+                    Storage.reports[CLOCK2_BUTTON] = "Report 2"
+                    reports[CLOCK2_BUTTON].text = Storage.reports[CLOCK2_BUTTON]
                 }
             }
         }
@@ -453,12 +446,12 @@ class TimingViewModel(private val repository: RaceChaseRepository) : ViewModel()
 
     private fun getSpeed(interval:Long): Float {
         /*
-         * the interval is from SystemClock.elapsedRealTime() which is in milleseconds.
+         * the interval is from SystemClock.elapsedRealTime() which is in milliseconds.
          * We have to convert this to a speed based on the track length units and the speedUnits
          */
         var speed: Float = 0.0F
 
-        when(TimingViewModel.track.units) {
+        when(Track.units) {
             "miles" -> {
                 when(speedUnits) {
                     "mph" -> {
@@ -466,7 +459,7 @@ class TimingViewModel(private val repository: RaceChaseRepository) : ViewModel()
                          * length is in miles and speed units is mile per hour
                          * There are 60*60*1000 milliseconds per hour
                          */
-                        speed = (TimingViewModel.track.length * (60*60*1000))/interval
+                        speed = (Track.length * (60*60*1000))/interval
                     }
                 }
             }

@@ -1,8 +1,6 @@
 package net.quietwind.racechase.ui
 
-import androidx.lifecycle.ViewModelProvider
 import android.os.Bundle
-import android.util.Log
 import androidx.fragment.app.Fragment
 import android.view.LayoutInflater
 import android.view.View
@@ -13,7 +11,6 @@ import android.widget.TextView
 import androidx.fragment.app.activityViewModels
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import net.quietwind.racechase.R
 import net.quietwind.racechase.RaceChaseApplication
 import net.quietwind.racechase.databinding.TimingFragmentBinding
 import net.quietwind.racechase.viewmodel.TimingViewModel
@@ -30,12 +27,7 @@ class TimingFragment : Fragment() {
 
     private lateinit var entrantView: RecyclerView
 
-    private lateinit var clock1: Chronometer
-    private lateinit var clock2: Chronometer
-
     private lateinit var timingBindings: UiTimingBindings
-
-    private var running: Array<Boolean> = arrayOf(false, false)
 
     private val viewModel: TimingViewModel by activityViewModels {
         TimingViewModelFactory(
@@ -45,19 +37,15 @@ class TimingFragment : Fragment() {
 
     companion object {
         fun newInstance(): Fragment {
-            Log.d("RaceChaseMain", "In TimingFrame.newInstance")
             return(TimingFragment())
         }
     }
-
-    //private lateinit var viewModel: TimingViewModel
 
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View {
-        Log.d("RaceChaseMain", "Called TimingFragment onCreateView")
         _binding = TimingFragmentBinding.inflate(inflater, container, false)
         val view = binding.root
 
@@ -116,9 +104,7 @@ class TimingFragment : Fragment() {
         /*
          * Now Load the entrant List
          */
-        Log.d("RaceChase", "Loading Entrant List")
         viewModel.loadEntrantList(entrantAdapter)
-        Log.d("RaceChase", "Returned From Loading Entrant List")
 
         /*
          * Now initialize the Timing Info
